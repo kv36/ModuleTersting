@@ -7,7 +7,7 @@ import java.util
 import java.util.{Comparator, Date, Locale}
 
 import com.clearspring.analytics.util.Lists
-import com.datastax.driver.core.{ResultSet, Row, Session}
+import com.datastax.driver.core._
 import com.datastax.spark.connector.cql.CassandraConnector
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
@@ -175,29 +175,62 @@ import org.slf4j.LoggerFactory
       }
 
 
+ class LatencyData(var CustomerId: BigInteger, var FirstAndSecondOrder_Latency: Double, var SecondAndThirdOrder_Latency: Double, var ThirdAndFourthOrder_Latency: Double) extends Serializable  {
 
-abstract class LatencyData extends Serializable {
 
-  protected var applicationId: BigInt
-  protected var FirstAndSecondOrder_Latency: Double
-  protected var SecondAndThirdOrder_Latency: Double
-  protected var ThirdAndFourthOrder_Latency: Double
 
-  def LatencyData(applicationId: BigInt, FirstAndSecondOrder_Latency: Double, SecondAndThirdOrder_Latency: Double, ThirdAndFourthOrder_Latency: Double): Unit = {
-
-    this.applicationId = applicationId
+    this.CustomerId = CustomerId
     this.FirstAndSecondOrder_Latency = FirstAndSecondOrder_Latency
     this.SecondAndThirdOrder_Latency = SecondAndThirdOrder_Latency
     this.ThirdAndFourthOrder_Latency = ThirdAndFourthOrder_Latency
-  }
 
-  def getapplicationId: BigInt = applicationId
+
+  def getCustomerId: BigInteger = CustomerId
   def getFirstAndSecondOrder_Latency: Double = FirstAndSecondOrder_Latency
   def getSecondAndThirdOrder_Latency: Double = SecondAndThirdOrder_Latency
   def getThirdAndFourthOrder_Latency: Double = ThirdAndFourthOrder_Latency
 }
 
 
+//
+// abstract class LatencyDataRowWriterfactory extends RowWriterFactory[LatencyData] {
+//
+//  val rowWriter: LatencyDataRowWriter = new LatencyDataRowWriter
+//
+//  def rowWriter(tableDef: TableDef, columns: Seq[String]): RowWriter[LatencyData] = { rowWriter }
+//
+//}
+
+//class LatencyDataRowWriter extends  RowWriter[LatencyData] {
+//  override def columnNames: Seq[String] =
+//
+////  def readColumnValues(latencyData: LatencyData, buffer: Array[Any]): Unit = {
+////    buffer (0) = latencyData.getCustomerId
+////    buffer (1) = latencyData.getFirstAndSecondOrder_Latency
+////    buffer (2) = latencyData.getSecondAndThirdOrder_Latency
+////    buffer (3) = latencyData.getThirdAndFourthOrder_Latency
+////  }
+//
+//
+//  def estimateSizeInBytes(latencyData: LatencyData): Int = {
+//    100
+//  }
+//
+//  def BoundStatement() = {
+//    case class Bind(BoundStatement: Bind, latencydata: LatencyData, ProtocolVersion: ProtocolVersion) {
+//      new BoundStatement (PreparedStatement)
+//    }
+//
+//    // def toIndexedSeq[T](iterable: Iterable[T]): IndexedSeq[T] = JavaConversions.asScalaIterator (util.Iterator [T]).toIndexedSeq
+//
+////     def readColumnValues(latencyData: LatencyData, buffer: scala.collection.mutable.Buffer[Object]): Unit = {
+////     buffer (0) = latencyData.getCustomerId
+////     buffer (1) = double2Double (latencyData.getFirstAndSecondOrder_Latency)
+////     buffer (2) = double2Double (latencyData.getSecondAndThirdOrder_Latency)
+////     buffer (3) = double2Double (latencyData.getThirdAndFourthOrder_Latency)
+//
+//  }
+//}
 
 
 class Latencycalculation {
@@ -386,10 +419,9 @@ class Latencycalculation {
 
 
   def cleanUpCassandra(sc: SparkContext): Unit = {
-
-    val session: Session = null
-
     val connector: CassandraConnector = CassandraConnector.apply (sc.getConf)
+
+    var session: Session = connector.openSession ()
 
     val lastRunDateSet: ResultSet = session.execute (String.format ("SELECT id, last_run_date FROM %s.%s", _cassandraSchemaName, _cassandraLatencyResultsTableName))
 
@@ -733,9 +765,15 @@ class Latencycalculation {
       }
     })
 
+
+
     val sortedOrdersPairRDD = ordersPairRDD.sortBy (f => f._2.getCreated, ascending = false).groupByKey ()
 
     val zeroValue: (BigInteger, Date, Date, Date, Date) = Tuple5 [BigInteger, Date, Date, Date, Date](null, null, null, null, null)
+
+    //val AggregatedsortedorderspairRDD = sortedOrdersPairRDD.aggregate (zeroValue, seqFunc(Tuple2(BigInteger, Order), Tuple5(BigInteger, Date, Date, Date, Date)), null)
+
+
 
 
     def seqFunc(Tuple2: (BigInteger, Order), Tuple5: (BigInteger, Date, Date, Date, Date)) = {
@@ -760,9 +798,63 @@ class Latencycalculation {
 
     //val testOrder = new Order (123, 368, "145667", "kartheek", "paid", "later", true, new BigInteger ("1243"), "kartheek", "vadlamani", "kv36@zips.uakron.edu", new BigDecimal ("124.56"), new BigDecimal ("65.46"), new BigDecimal ("155.88"), new BigDecimal ("143.43"), "USD", "No Idea", d3, d4, d5, false, "Fir Hills", "same", d3, d4, 345, "Crazy Idea", true)
 
-    //val AggregatedsortedorderspairRDD = sortedOrdersPairRDD.aggregate (zeroValue, seqFunc(Tuple2(BigInteger, testOrder), Tuple5(BigInteger, Date, Date, Date, Date)) , null)
 
-     JavaRDD[LatencyData]
+    //aggregate[U: ClassTag](zeroValue: U)(seqOp: (U, T) => U, combOp: (U, U) => U): U = withScope
+     //JavaRDD[LatencyData]
+
+    val AggregatedsortedorderspairRDD = sortedOrdersPairRDD.aggregateByKey(zeroValue)((x, y) => {
+      val customerId = x._1
+      val order: Order = y.head
+
+      if (Tuple5 == null || Tuple5 == zeroValue) {
+        new Tuple5 (customerId, order.getCreated, null, null, null)
+      }
+      else {
+        if (x._3 == null) {
+          new Tuple5 (customerId, x._2, order.getCreated, null, null)
+        }
+        else if (x._4 == null) {
+          new Tuple5 (customerId, x._1, x._2, order.getCreated, null)
+        }
+        else if (x._5 == null) {
+          new Tuple5 (customerId, x._1, x._2, x._3, order.getCreated)
+        }
+        null
+      }
+    }, null)
+
+
+    val latencyDataJavaRdd : JavaRDD[LatencyData] = AggregatedsortedorderspairRDD.map(x =>
+    {
+      val customerId : BigInteger = x._1
+      val firstOrderDate : Date = x._2._2
+      val secondOrderDate : Date = x._2._3
+      val thirdOrderDate : Date = x._2._4
+      val fourthOrderDate : Date = x._2._5
+
+      var firstAndSecondOrderDiff : Double = 0
+      var secondAndThirdOrderDiff : Double = 0
+      var thirdAndFourthOrderDiff : Double = 0
+      val daysDivisor: Int = 24 * 60 * 60 * 1000
+
+      if (secondOrderDate != null && firstOrderDate != null) {
+        firstAndSecondOrderDiff = (secondOrderDate.getTime - firstOrderDate.getTime) / daysDivisor
+      }
+
+      if (thirdOrderDate != null && secondOrderDate != null) {
+        secondAndThirdOrderDiff = (thirdOrderDate.getTime - secondOrderDate.getTime) / daysDivisor
+      }
+
+      if (fourthOrderDate != null && thirdOrderDate != null) {
+        thirdAndFourthOrderDiff = (fourthOrderDate.getTime - thirdOrderDate.getTime) / daysDivisor
+      }
+
+      val latencyData : LatencyData = new LatencyData(customerId, firstAndSecondOrderDiff, secondAndThirdOrderDiff, thirdAndFourthOrderDiff)
+
+      latencyData
+    })
+
+    latencyDataJavaRdd
 
   }
 }
@@ -807,26 +899,27 @@ class Latencycalculation {
       println (conf)
 
       val sc: JavaSparkContext = new JavaSparkContext (conf)
-
+     // val latdata = new LatencyData
       val LatencyCalc = new Latencycalculation
-      val currentDateTimePath: String = LatencyCalc.getCurrentDateTimePath
-      val IFJRD = LatencyCalc.insertFirstJobRunDate (Session) // need to give parameters
-      val dnd = LatencyCalc.deleteNewData (String, hdfsPath) // need to give parameters
       val getconfig = LatencyCalc.getConfiguration
-      val dpe = LatencyCalc.doesPathExist (String, hdfsPath) // need to give parameters
-      val Res = LatencyCalc.RemoveEscapeSequences (String) // need to give parameters
-      val TPBD = LatencyCalc.TryParseBigDecimal (String) // need to give parameter
-      val TPBI = LatencyCalc.TryParseBigInteger (String) // need to pass bigIntvalue
-      val TPI = LatencyCalc.TryParseInteger (String) // need to pass Integer argument
-      val TPBV = LatencyCalc.TryParseBoolean (String) // need to pass boolvalue
-      val TPD = LatencyCalc.TryParseDate (String, SimpleDateFormat) // need to pass the arguments
+      val currentDateTimePath: String = LatencyCalc.getCurrentDateTimePath
+      LatencyCalc.InitializeCassandra (JavaSparkContext.toSparkContext (sc))
+      LatencyCalc.cleanUpCassandra (JavaSparkContext.toSparkContext (sc))
 
-      val InitCassandra = LatencyCalc.InitializeCassandra (JavaSparkContext.toSparkContext (sc))
-      val clnCassandra = LatencyCalc.cleanUpCassandra (JavaSparkContext.toSparkContext (sc))
-      val Pord = LatencyCalc.parseOrders (String, sc) // need to pass parameters.
-      val parcustdata = LatencyCalc.parseCustomerData (String, sc)
-      val PCBA = LatencyCalc.partitionCustomersByApplication (sc, JavaRDD [Customer], String, masterDataPath) // need to pass in the parameters
-      val POBA = LatencyCalc.partitionOrdersByApplication (sc, JavaRDD [Order], String, masterDataPath) // need to pass in the parameters
+          //LatencyCalc.deleteNewData (path, hdfsPath) // need to give parameters
+//        LatencyCalc.doesPathExist (String, hdfsPath) // need to give parameters
+//        LatencyCalc.RemoveEscapeSequences (String) // need to give parameters
+//        LatencyCalc.TryParseBigDecimal (String) // need to give parameter
+//        LatencyCalc.TryParseBigInteger (String) // need to pass bigIntvalue
+//        LatencyCalc.TryParseInteger (String) // need to pass Integer argument
+//        LatencyCalc.TryParseBoolean (String) // need to pass boolvalue
+//        LatencyCalc.TryParseDate (String, SimpleDateFormat) // need to pass the arguments
+        LatencyCalc.InitializeCassandra (JavaSparkContext.toSparkContext (sc))
+        LatencyCalc.cleanUpCassandra (JavaSparkContext.toSparkContext (sc))
+//        LatencyCalc.parseOrders (String, sc) // need to pass parameters.
+//        LatencyCalc.parseCustomerData (String, sc)
+//        LatencyCalc.partitionCustomersByApplication (sc, JavaRDD [Customer], String, masterDataPath) // need to pass in the parameters
+//        LatencyCalc.partitionOrdersByApplication (sc, JavaRDD [Order], String, masterDataPath) // need to pass in the parameters
 
       // Partition new data from the database into the master data set
 
@@ -856,8 +949,8 @@ class Latencycalculation {
 
           // Calculate Latency data for the customer
 
-          val FinalIntermediateLatencyDataRdd: JavaRDD[LatencyData] = LatencyCalc.calculateLatency (sc, applicationId, customersMasterDataPath, ordersMasterDataPath, LatencyOutputResultsPath)
-          FinalIntermediateLatencyDataRdd.cache ()
+          val FinalLatencyDataRdd: JavaRDD[LatencyData]  = LatencyCalc.calculateLatency (sc, applicationId, customersMasterDataPath, ordersMasterDataPath, LatencyOutputResultsPath)
+          FinalLatencyDataRdd.cache ()
 
         }
         LatencyCalc.cleanUpCassandra (sc)
@@ -865,6 +958,7 @@ class Latencycalculation {
       }
       sc.stop ()
       _logger.info ("LatencyCalculation is complete")
+
 
 
 
