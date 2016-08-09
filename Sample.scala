@@ -255,6 +255,7 @@ class Latencycalculation extends Serializable {
 
 
 
+
   def doesPathExist(path: String, hdfsPath: String): Boolean = {
     val conf: Configuration = getConfiguration
     val hdfs: FileSystem = FileSystem.get (URI.create (hdfsPath), conf)
