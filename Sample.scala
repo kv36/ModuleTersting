@@ -124,7 +124,7 @@ import com.datastax.spark.connector.writer.RowWriter
         }
     }
 
-       class Customer(var id: BigInteger, var applicationId: Int, var customerId: BigInteger, var customerGroup: String, var firstName: String, var lastName: String, var email: String, var optInNewsletter: Boolean, var createdAt: Date, var updatedAt: Date, var isSynced: Boolean, var created: Date, var modified: Date, var consumerCustomerId: Integer, var isPartialData: Boolean) extends Serializable {
+       class Customer(var id: BigInteger, var applicationId: Int, var customerId: BigInteger, var customerGroup: String, var firstName: String, var lastName: String, var email: String, var optInNewsletter: Boolean, var createdAt: Date, var updatedAt: Date, var isSynced: Boolean, var created: Date, var modified: Date, var consumerCustomerId: Integer, var isPartialData: Boolean)  {
 
         this.id = id
         this.applicationId = applicationId
@@ -207,7 +207,7 @@ class LatencyDataRowWriterFactory extends RowWriterFactory[LatencyData] {
 
 
 
-class Latencycalculation {
+class Latencycalculation extends Serializable {
 
   val currentDateTimePath: String = getCurrentDateTimePath
   val _cassandraSchemaName: String = "revenue_conduit"
@@ -256,18 +256,25 @@ class Latencycalculation {
 
 
   def doesPathExist(path: String, hdfsPath: String): Boolean = {
-
-    val path1: String = null
     val conf: Configuration = getConfiguration
     val hdfs: FileSystem = FileSystem.get (URI.create (hdfsPath), conf)
 
+    var pathWithoutWildcard : String = null
+
     if (path.endsWith ("*")) {
-      val path1: String = path substring(0, path.length () - 2)
-      true
+      pathWithoutWildcard = path substring(0, path.length () - 2)
     }
-    else if (hdfs.exists (new Path (path1))) true
-    else false
+    else {
+      pathWithoutWildcard = path
+    }
+
+    if (hdfs.exists (new Path (pathWithoutWildcard)))
+      true
+    else
+      false
   }
+
+
 
 
 
@@ -393,9 +400,9 @@ class Latencycalculation {
 
     session.execute (String.format ("CREATE KEYSPACE IF NOT EXISTS %" + "s WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}", _cassandraSchemaName))
 
-    session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (application_id BigInt, FirstandSecondOrder_Latency Double, SecondandThirdOrder_Latency Double, ThirdandFourthOrderLatency Double) " + "PRIMARY KEY (application_id,))", _cassandraSchemaName, _cassandraLatencyResultsTableName))
+    session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (customer_id BigInt, FirstandSecondOrder_Latency Double, SecondandThirdOrder_Latency Double, ThirdandFourthOrderLatency Double, " + "PRIMARY KEY (customer_id))", _cassandraSchemaName, _cassandraLatencyResultsTableName))
 
-    session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (application_id INT, customer_id VARINT, customer_name TEXT, company_name TEXT, customer_group TEXT, customer_city TEXT, customer_state TEXT, customer_country TEXT, customer_email TEXT, " + "orders_sub_total DECIMAL, orders_count INT, first_order_date TIMESTAMP, last_order_date TIMESTAMP, average_days_between_orders INT, first_order_amount DECIMAL, last_order_amount DECIMAL, average_order_price DECIMAL, customer_created_at TIMESTAMP, " + "PRIMARY KEY (application_id, customer_id))", _cassandraSchemaName, _cassandraLatencyResultsTableName))
+    //session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (application_id INT, customer_id VARINT, customer_name TEXT, company_name TEXT, customer_group TEXT, customer_city TEXT, customer_state TEXT, customer_country TEXT, customer_email TEXT, " + "orders_sub_total DECIMAL, orders_count INT, first_order_date TIMESTAMP, last_order_date TIMESTAMP, average_days_between_orders INT, first_order_amount DECIMAL, last_order_amount DECIMAL, average_order_price DECIMAL, customer_created_at TIMESTAMP, " + "PRIMARY KEY (application_id, customer_id))", _cassandraSchemaName, _cassandraLatencyResultsTableName))
     if (session != null && !session.isClosed)
       session.close ()
 
@@ -703,14 +710,14 @@ class Latencycalculation {
 
   def ingestNewData(hdfsPath: String, masterDataPath: String, customersPath: String, ordersPath: String, sc: SparkContext, currentDateTimePath: String) {
 
-    var customersDataCsv: JavaRDD[Customer] = null
-    var ordersDataCsv: JavaRDD[Order] = null
+  //  var customersDataCsv: JavaRDD[Customer] = null
+ //   var ordersDataCsv: JavaRDD[Order] = null
 
 
     // If there is new data for customers, then parse that data, partition it by application id into the master data set, then delete the new data
 
     if (doesPathExist (customersPath, hdfsPath)) {
-      customersDataCsv = parseCustomerData (customersPath, sc)
+      val customersDataCsv: JavaRDD[Customer] = parseCustomerData (customersPath, sc)
       partitionCustomersByApplication (sc, customersDataCsv, currentDateTimePath, masterDataPath)
       deleteNewData (customersPath, masterDataPath)
     }
@@ -718,7 +725,7 @@ class Latencycalculation {
     // If there is new data for orders, then parse that data, partition it by application id into the master data set, then delete the new data
 
     if (doesPathExist (ordersPath, hdfsPath)) {
-      ordersDataCsv = parseOrders (ordersPath, sc)
+     val ordersDataCsv: JavaRDD[Order] = parseOrders (ordersPath, sc)
       partitionOrdersByApplication (sc, ordersDataCsv, currentDateTimePath, masterDataPath)
       deleteNewData (ordersPath, masterDataPath)
     }
@@ -893,14 +900,14 @@ class Latencycalculation {
       println (conf)
 
       val sc: JavaSparkContext = new JavaSparkContext (conf)
-     // val latdata = new LatencyData
+      //val latdata = new LatencyData
       val LatencyCalc = new Latencycalculation
       val getconfig = LatencyCalc.getConfiguration
       val currentDateTimePath: String = LatencyCalc.getCurrentDateTimePath
       LatencyCalc.InitializeCassandra (JavaSparkContext.toSparkContext (sc))
-      LatencyCalc.cleanUpCassandra (JavaSparkContext.toSparkContext (sc))
-      LatencyCalc.InitializeCassandra (JavaSparkContext.toSparkContext (sc))
-      LatencyCalc.cleanUpCassandra (JavaSparkContext.toSparkContext (sc))
+      //LatencyCalc.cleanUpCassandra (JavaSparkContext.toSparkContext (sc))
+     // LatencyCalc.InitializeCassandra (JavaSparkContext.toSparkContext (sc))
+      //LatencyCalc.cleanUpCassandra (JavaSparkContext.toSparkContext (sc))
 
 
       // Partition new data from the database into the master data set
