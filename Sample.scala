@@ -231,13 +231,16 @@ class Latencycalculation extends Serializable {
 
   def deleteNewData(path: String, hdfsPath: String) {
 
-    val path1: String = null
+    var path1: String = null
     val conf: Configuration = getConfiguration
     val hdfs: FileSystem = FileSystem.get (URI.create (hdfsPath), conf)
     if (path.endsWith ("*")) {
       val path1: String = path.substring (0, path.length () - 2)
     }
-    else if (hdfs.exists (new Path (path1))) {
+    else {
+      path1 = path
+    }
+    if (hdfs.exists (new Path (path1))) {
       hdfs.delete (new Path (path1), true)
     }
 
@@ -344,11 +347,12 @@ class Latencycalculation extends Serializable {
 
 
   def TryParseBoolean(boolValue: String): Boolean = {
-
-    var bool: Boolean = Boolean2boolean (null)
+    var bool: Boolean = false
     val nullString: String = new String ("null")
 
-    if (boolValue != null && !boolValue.isEmpty && boolValue != nullString) bool = boolValue.toBoolean
+    if (boolValue != null && !boolValue.isEmpty && boolValue != nullString) {
+      bool = boolValue.toBoolean
+    }
     bool
   }
 
@@ -358,7 +362,7 @@ class Latencycalculation extends Serializable {
 
 
     var date: Date = null
-    val simpleDateFormat: SimpleDateFormat = new SimpleDateFormat ()
+    val simpleDateFormat: SimpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
 
     val nullString: String = new String ("null")
 
@@ -440,8 +444,8 @@ class Latencycalculation extends Serializable {
 
         session.execute (String.format ("INSERT INTO %s.%s (id, last_run_date) values (%s)", _cassandraSchemaName, _cassandraLatencyResultsTableName, currentDateTimePath))
 
-        var i: Int = 0
-        while (i < allDatesSize) {
+       // var i: Int = 1
+        for (i <- 0 to Integer2int (allDatesSize)) {
           {
             val previousRunRow: Row = allDates.get (i)
             val previousRunId: Integer = previousRunRow.getInt (0)
@@ -450,10 +454,6 @@ class Latencycalculation extends Serializable {
               val cassandraLastRunLatencyResultsTableName: String = String.format ("Latency_results_%s", lastRunDate)
               session.execute (String.format ("DROP TABLE IF EXISTS %s.%s", _cassandraSchemaName, cassandraLastRunLatencyResultsTableName))
             }
-          }
-          {
-            i += 1
-            i - 1
           }
         }
       }
@@ -539,11 +539,10 @@ class Latencycalculation extends Serializable {
   }
 
 
-
+//def map[R](f: JFunction[T, R]): JavaRDD[R]
 
   def parseCustomerData(customersPath: String, sc: JavaSparkContext): JavaRDD[Customer] = {
-    sc.textFile (customersPath).map (new Function[String, Customer]() {
-      @throws[Exception]
+    sc.textFile (customersPath).map[Customer](new Function[String, Customer]() {
       def call(line: String): Customer = {
         try {
           val lineWithoutEscapeCharacters: String = RemoveEscapeSequences (line)
@@ -571,6 +570,7 @@ class Latencycalculation extends Serializable {
             val isPartialData: Boolean = TryParseBoolean (fields (14))
             val customer: Customer = new Customer (id, applicationId, customerId, customerGroup, firstName, lastName, email, optInNewsletter, createdAt, updatedAt, isSynced, created, modified, consumerCustomerId, isPartialData)
             customer
+
           }
           else {
             val errorMessage: String = "%s %s %s".format ("Customer '%s' cannot be parsed due to invalid length of %s.", lineWithoutEscapeCharacters, fields.length)
@@ -590,10 +590,14 @@ class Latencycalculation extends Serializable {
 
 
 
+
+
+
   def partitionCustomersByApplication(sc: JavaSparkContext, customersDataCsv: JavaRDD[Customer], currentDateTime: String, masterDataPath: String) {
     val customersPairByApplicationIdRdd: JavaPairRDD[String, String] = customersDataCsv.mapToPair (new PairFunction[Customer, String, String]() {
       @throws[Exception]
       def call(customer: Customer): (String, String) = {
+
         if (customer != null && customer.getApplicationId != null) {
           new Tuple2[String, String](customer.getApplicationId.toString, customer.toString)
         }
@@ -602,31 +606,25 @@ class Latencycalculation extends Serializable {
         }
       }
     })
-    println (Tuple2)
     val customersPairGroupedByApplicationIdRdd: JavaPairRDD[String, Iterable[String]] = customersPairByApplicationIdRdd.groupByKey
-    println (customersPairGroupedByApplicationIdRdd)
+
     val keys: util.List[String] = customersPairGroupedByApplicationIdRdd.keys.collect
-    println (keys)
+
     val values: util.List[Iterable[String]] = customersPairGroupedByApplicationIdRdd.values.collect
-    println (values)
-    var i: Int = 0
-    while (i < keys.size) {
+
+
+    for (i <- 0 to keys.size) {
       {
         val applicationIdKey: String = keys.get (i)
-        println (applicationIdKey)
+
         if (applicationIdKey != null) {
           val customersByAppValuesList: util.List[String] = Lists.newArrayList (values.get (i))
-          println (customersByAppValuesList)
           val customersByAppValuesRdd: JavaRDD[String] = sc.parallelize (customersByAppValuesList)
-          println (customersByAppValuesRdd)
+
           val customersPath: String = String.format ("%s/customers/%s/%s/", masterDataPath, applicationIdKey.toString, currentDateTime)
-          println (customersPath)
+
           customersByAppValuesRdd.saveAsTextFile (customersPath)
         }
-      }
-      {
-        i += 1
-        i - 1
       }
     }
   }
@@ -649,8 +647,8 @@ class Latencycalculation extends Serializable {
     val ordersPairGroupedByApplicationIdRdd: JavaPairRDD[String, Iterable[String]] = ordersPairByApplicationIdRdd.groupByKey
     val keys: util.List[String] = ordersPairGroupedByApplicationIdRdd.keys.collect
     val values: util.List[Iterable[String]] = ordersPairGroupedByApplicationIdRdd.values.collect
-    var i: Int = 0
-    while (i < keys.size) {
+    //var i: Int = 1
+    for ( i <- 0 to keys.size) {
       {
         val applicationIdKey: String = keys.get (i)
         if (applicationIdKey != null) {
@@ -659,10 +657,6 @@ class Latencycalculation extends Serializable {
           val ordersPath: String = String.format ("%s/orders/%s/%s/", masterDataPath, applicationIdKey.toString, currentDateTime)
           ordersByAppValuesRdd.saveAsTextFile (ordersPath)
         }
-      }
-      {
-        i += 1
-        i - 1
       }
     }
   }
@@ -678,8 +672,8 @@ class Latencycalculation extends Serializable {
         val conf: Configuration = getConfiguration
         val hdfs: FileSystem = FileSystem.get (URI.create (hdfsPath), conf)
         val status: Array[FileStatus] = hdfs.listStatus (new Path (customersPath))
-        var i: Int = 0
-        while (i < status.length) {
+
+        for (i <- 0 to status.length) {
           {
             val directoryName: String = status (i).getPath.getName
             val applicationId: Integer = TryParseInteger (directoryName)
@@ -690,10 +684,6 @@ class Latencycalculation extends Serializable {
                 applicationIds.add (applicationId)
               }
             }
-          }
-          {
-            i += 1
-            i - 1
           }
         }
       }
@@ -719,7 +709,7 @@ class Latencycalculation extends Serializable {
 
     if (doesPathExist (customersPath, hdfsPath)) {
       val customersDataCsv: JavaRDD[Customer] = parseCustomerData (customersPath, sc)
-      partitionCustomersByApplication (sc, customersDataCsv, currentDateTimePath, masterDataPath)
+      partitionCustomersByApplication (JavaSparkContext.fromSparkContext (sc), customersDataCsv, currentDateTimePath, masterDataPath)
       deleteNewData (customersPath, masterDataPath)
     }
 
@@ -903,17 +893,16 @@ class Latencycalculation extends Serializable {
       val sc: JavaSparkContext = new JavaSparkContext (conf)
       //val latdata = new LatencyData
       val LatencyCalc = new Latencycalculation
-      val getconfig = LatencyCalc.getConfiguration
+      LatencyCalc.getConfiguration
       val currentDateTimePath: String = LatencyCalc.getCurrentDateTimePath
       LatencyCalc.InitializeCassandra (JavaSparkContext.toSparkContext (sc))
       //LatencyCalc.cleanUpCassandra (JavaSparkContext.toSparkContext (sc))
      // LatencyCalc.InitializeCassandra (JavaSparkContext.toSparkContext (sc))
       //LatencyCalc.cleanUpCassandra (JavaSparkContext.toSparkContext (sc))
 
-
       // Partition new data from the database into the master data set
 
-      val IND = LatencyCalc.ingestNewData (hdfsPath, masterDataPath, customersPath, ordersPath, sc, currentDateTimePath)
+       LatencyCalc.ingestNewData (hdfsPath, masterDataPath, customersPath, ordersPath, sc, currentDateTimePath)
 
       val applicationIds: util.ArrayList[Integer] = LatencyCalc.getApplicationIds (masterDataPath, hdfsPath)
 
@@ -930,7 +919,7 @@ class Latencycalculation extends Serializable {
         //Loop through the each application and Run Latency Calculations on it based on the master data sets customers, and orders for that application.
 
         // Loop through each application and calculate its Latency data and save it.
-        for (i <- 0 to applicationIds.size ()) {
+        for (i <- 1 to applicationIds.size ()) {
           val applicationId: Integer = applicationIds.get (i)
           val customersMasterDataPath: String = "%s %s %s".format ("%s/customers/%s/*", masterDataPath, applicationId)
           val ordersMasterDataPath: String = "%s %s %s".format ("%s/orders/%s/*", masterDataPath, applicationId)
@@ -939,7 +928,7 @@ class Latencycalculation extends Serializable {
 
           // Calculate Latency data for the customer
 
-          val FinalLatencyDataRdd: JavaRDD[LatencyData]  = LatencyCalc.calculateLatency (sc, applicationId, customersMasterDataPath, ordersMasterDataPath, LatencyOutputResultsPath)
+          val FinalLatencyDataRdd: JavaRDD[LatencyData]  = LatencyCalc.calculateLatency (sc, Integer2int (applicationId), customersMasterDataPath, ordersMasterDataPath, LatencyOutputResultsPath)
           FinalLatencyDataRdd.cache ()
 
         }
