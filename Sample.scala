@@ -212,6 +212,7 @@ class Latencycalculation extends Serializable {
   val currentDateTimePath: String = getCurrentDateTimePath
   val _cassandraSchemaName: String = "revenue_conduit"
   val _cassandraLatencyResultsTableName: String = "Latency_results"
+  val _cassandraLatencyLastRunTableName: String = "Latency_last_run"
   val _logger = LoggerFactory.getLogger (classOf [Latencycalculation])
 
 
@@ -229,22 +230,46 @@ class Latencycalculation extends Serializable {
   }
 
 
+//  def deleteNewData(path: String, hdfsPath: String) {
+//
+//    var newpath: String = null
+//    val conf: Configuration = getConfiguration
+//    val hdfs: FileSystem = FileSystem.get (URI.create (hdfsPath), conf)
+//    if (path.endsWith ("*")) {
+//      val newpath: String = path.substring (0, path.length () - 2)
+//    }
+//    else {
+//      newpath = path
+//    }
+//    if (hdfs.exists (new Path (newpath))) {
+//      hdfs.delete (new Path (newpath), true)
+//    }
+//
+//  }
+
   def deleteNewData(path: String, hdfsPath: String) {
 
-    var path1: String = null
+
     val conf: Configuration = getConfiguration
     val hdfs: FileSystem = FileSystem.get (URI.create (hdfsPath), conf)
+
+     var newpath: String = null
+
     if (path.endsWith ("*")) {
-      val path1: String = path.substring (0, path.length () - 2)
+      newpath = path substring(0, path.length () - 2)
     }
+
     else {
-      path1 = path
+      newpath = path
     }
-    if (hdfs.exists (new Path (path1))) {
-      hdfs.delete (new Path (path1), true)
+
+    if (hdfs.exists (new Path (newpath)))
+    {
+      hdfs.delete (new Path (newpath), true)
     }
 
   }
+
 
 
 
@@ -407,6 +432,8 @@ class Latencycalculation extends Serializable {
 
     session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (customer_id BigInt, FirstandSecondOrder_Latency Double, SecondandThirdOrder_Latency Double, ThirdandFourthOrderLatency Double, " + "PRIMARY KEY (customer_id))", _cassandraSchemaName, _cassandraLatencyResultsTableName))
 
+    session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (id INT PRIMARY KEY, last_run_date TEXT)", _cassandraSchemaName, _cassandraLatencyLastRunTableName))
+
     //session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (application_id INT, customer_id VARINT, customer_name TEXT, company_name TEXT, customer_group TEXT, customer_city TEXT, customer_state TEXT, customer_country TEXT, customer_email TEXT, " + "orders_sub_total DECIMAL, orders_count INT, first_order_date TIMESTAMP, last_order_date TIMESTAMP, average_days_between_orders INT, first_order_amount DECIMAL, last_order_amount DECIMAL, average_order_price DECIMAL, customer_created_at TIMESTAMP, " + "PRIMARY KEY (application_id, customer_id))", _cassandraSchemaName, _cassandraLatencyResultsTableName))
     if (session != null && !session.isClosed)
       session.close ()
@@ -420,7 +447,7 @@ class Latencycalculation extends Serializable {
 
     val session: Session = connector.openSession ()
 
-    val lastRunDateSet: ResultSet = session.execute (String.format ("SELECT id, last_run_date FROM %s.%s", _cassandraSchemaName, _cassandraLatencyResultsTableName))
+    val lastRunDateSet: ResultSet = session.execute (String.format ("SELECT id, last_run_date FROM %s.%s", _cassandraSchemaName, _cassandraLatencyLastRunTableName))
 
     if (lastRunDateSet != null) {
 
@@ -613,8 +640,8 @@ class Latencycalculation extends Serializable {
     val values: util.List[Iterable[String]] = customersPairGroupedByApplicationIdRdd.values.collect
 
 
-    for (i <- 0 to keys.size) {
-      {
+    for (i <- 0 until keys.size ) {
+
         val applicationIdKey: String = keys.get (i)
 
         if (applicationIdKey != null) {
@@ -625,7 +652,6 @@ class Latencycalculation extends Serializable {
 
           customersByAppValuesRdd.saveAsTextFile (customersPath)
         }
-      }
     }
   }
 
@@ -645,11 +671,15 @@ class Latencycalculation extends Serializable {
       }
     })
     val ordersPairGroupedByApplicationIdRdd: JavaPairRDD[String, Iterable[String]] = ordersPairByApplicationIdRdd.groupByKey
+
     val keys: util.List[String] = ordersPairGroupedByApplicationIdRdd.keys.collect
+
     val values: util.List[Iterable[String]] = ordersPairGroupedByApplicationIdRdd.values.collect
+
     //var i: Int = 1
-    for ( i <- 0 to keys.size) {
-      {
+
+    for ( i <- 0 until keys.size) {
+
         val applicationIdKey: String = keys.get (i)
         if (applicationIdKey != null) {
           val ordersByAppValuesList: util.List[String] = Lists.newArrayList (values.get (i))
@@ -657,7 +687,6 @@ class Latencycalculation extends Serializable {
           val ordersPath: String = String.format ("%s/orders/%s/%s/", masterDataPath, applicationIdKey.toString, currentDateTime)
           ordersByAppValuesRdd.saveAsTextFile (ordersPath)
         }
-      }
     }
   }
 
@@ -673,14 +702,14 @@ class Latencycalculation extends Serializable {
         val hdfs: FileSystem = FileSystem.get (URI.create (hdfsPath), conf)
         val status: Array[FileStatus] = hdfs.listStatus (new Path (customersPath))
 
-        for (i <- 0 to status.length) {
+        for (i <- status.indices) {
           {
             val directoryName: String = status (i).getPath.getName
             val applicationId: Integer = TryParseInteger (directoryName)
             if (applicationId != null) {
-              val customerAddressesPathByAppId: String = String.format ("%s/customers_addresses/%s", masterDataPath, applicationId)
+              val customersByAppId: String = String.format ("%s/customers/%s", masterDataPath, applicationId)
               val ordersPathByAppId: String = String.format ("%s/orders/%s", masterDataPath, applicationId)
-              if (doesPathExist (customerAddressesPathByAppId, hdfsPath) && doesPathExist (ordersPathByAppId, hdfsPath)) {
+              if (doesPathExist (customersByAppId, hdfsPath) && doesPathExist (ordersPathByAppId, hdfsPath)) {
                 applicationIds.add (applicationId)
               }
             }
@@ -793,6 +822,10 @@ class Latencycalculation extends Serializable {
     }
 
 
+    def combinerFunc(x: (BigInteger, Date, Date, Date, Date), y: (BigInteger, Date, Date, Date, Date)) : (BigInteger, Date, Date, Date, Date) = {
+      null
+    }
+
 
 
     val AggregatedsortedorderspairRDD = sortedOrdersPairRDD.aggregateByKey(zeroValue)((x, y) => {
@@ -814,7 +847,7 @@ class Latencycalculation extends Serializable {
         }
         null
       }
-    }, null)
+    }, combinerFunc)
 
 
     val latencyDataJavaRdd : JavaRDD[LatencyData] = AggregatedsortedorderspairRDD.map(x =>
@@ -847,6 +880,7 @@ class Latencycalculation extends Serializable {
       latencyData
     })
 
+   // latencyDataJavaRdd.saveAsTextFile(LatencyOutputResultspath)
     latencyDataJavaRdd
 
   }
@@ -919,16 +953,17 @@ class Latencycalculation extends Serializable {
         //Loop through the each application and Run Latency Calculations on it based on the master data sets customers, and orders for that application.
 
         // Loop through each application and calculate its Latency data and save it.
-        for (i <- 1 to applicationIds.size ()) {
+        for (i <- 0 until applicationIds.size ) {
           val applicationId: Integer = applicationIds.get (i)
-          val customersMasterDataPath: String = "%s %s %s".format ("%s/customers/%s/*", masterDataPath, applicationId)
-          val ordersMasterDataPath: String = "%s %s %s".format ("%s/orders/%s/*", masterDataPath, applicationId)
-          val LatencyOutputResultsPath: String = "%s %s %s %s".format ("%s%s/%s", LatencyResultsPath, applicationId, currentDateTimePath)
+          val customersMasterDataPath: String = String.format ("%s/customers/%s/*", masterDataPath, applicationId)
+          val ordersMasterDataPath: String = String.format ("%s/orders/%s/*", masterDataPath, applicationId)
+          val LatencyOutputResultsPath: String = String.format ("%s%s/%s", LatencyResultsPath, applicationId, currentDateTimePath)
 
 
           // Calculate Latency data for the customer
 
           val FinalLatencyDataRdd: JavaRDD[LatencyData]  = LatencyCalc.calculateLatency (sc, Integer2int (applicationId), customersMasterDataPath, ordersMasterDataPath, LatencyOutputResultsPath)
+          FinalLatencyDataRdd.saveAsTextFile(LatencyOutputResultsPath)
           FinalLatencyDataRdd.cache ()
 
         }
@@ -939,8 +974,8 @@ class Latencycalculation extends Serializable {
       _logger.info ("LatencyCalculation is complete")
 
 
-      val LDRW = new LatencyDataRowWriter
-      val LDRF = new LatencyDataRowWriterFactory
+      new LatencyDataRowWriter
+      new LatencyDataRowWriterFactory
 
 
 
