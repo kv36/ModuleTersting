@@ -11,14 +11,14 @@ import com.datastax.driver.core._
 import com.datastax.spark.connector.ColumnRef
 import com.datastax.spark.connector.cql.{CassandraConnector, TableDef}
 import com.datastax.spark.connector.japi.CassandraJavaUtil._
-import com.datastax.spark.connector.writer.RowWriterFactory
+import com.datastax.spark.connector.writer.{RowWriter, RowWriterFactory}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
+import org.apache.spark.api.java.JavaSparkContext._
 import org.apache.spark.api.java.function.{Function, PairFunction}
 import org.apache.spark.api.java.{JavaPairRDD, JavaRDD, JavaSparkContext}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.slf4j.LoggerFactory
-import com.datastax.spark.connector.writer.RowWriter
 
       class Order(var id: Int, var applicationId: Int, var orderId: String, var orderNumber: String, var status: String, var financialStatus: String, var customerIsGuest: Boolean, var customerId: BigInteger, var firstName: String, var lastName: String, var email: String, var subTotalPrice: BigDecimal, var totalDiscounts: BigDecimal, var storeCredit: BigDecimal, var totalPrice: BigDecimal, var currencyCode: String, var source: String, var createdAt: Date, var updatedAt: Date, var customerCreatedAt: Date, var isSynced: Boolean, var billingAddressId: String, var shippingAddressId: String, var created: Date, var modified: Date, var consumerOrderId: Integer, var previousStatus: String, var isPartialData: Boolean)
       {
@@ -187,10 +187,8 @@ import com.datastax.spark.connector.writer.RowWriter
            else null
            val formattedModifiedDate: String = if (modified != null) outputDateFormatter.format (modified)
            else null
-            //String.format ("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", id, applicationId, customerId, customerGroup, firstName, lastName, email, optInNewsletter, formattedCreatedAtDate, formattedUpdatedAtDate, isSynced, formattedCreatedDate, formattedModifiedDate, consumerCustomerId, isPartialData)
          // String.format(String, id, applicationId, customerId, customerGroup, firstName, lastName, email, optInNewsletter, formattedCreatedAtDate, formattedUpdatedAtDate, isSynced, formattedCreatedDate, formattedModifiedDate, consumerCustomerId, isPartialData)
            s"$id $applicationId $customerId $customerGroup $firstName $lastName $email $optInNewsletter $formattedCreatedAtDate $formattedUpdatedAtDate $isSynced $formattedCreatedDate $formattedModifiedDate $consumerCustomerId $isPartialData"
-            //String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", id, applicationId, customerId, customerGroup, firstName, lastName, email, optInNewsletter, formattedCreatedAtDate, formattedUpdatedAtDate, isSynced, formattedCreatedDate, formattedModifiedDate, consumerCustomerId, isPartialData)
          }
       }
 
@@ -249,23 +247,6 @@ class Latencycalculation extends Serializable {
   }
 
 
-//  def deleteNewData(path: String, hdfsPath: String) {
-//
-//    var newpath: String = null
-//    val conf: Configuration = getConfiguration
-//    val hdfs: FileSystem = FileSystem.get (URI.create (hdfsPath), conf)
-//    if (path.endsWith ("*")) {
-//      val newpath: String = path.substring (0, path.length () - 2)
-//    }
-//    else {
-//      newpath = path
-//    }
-//    if (hdfs.exists (new Path (newpath))) {
-//      hdfs.delete (new Path (newpath), true)
-//    }
-//
-//  }
-
   def deleteNewData(path: String, hdfsPath: String) {
 
 
@@ -288,8 +269,6 @@ class Latencycalculation extends Serializable {
     }
 
   }
-
-
 
 
   def getConfiguration: Configuration = {
@@ -483,7 +462,7 @@ class Latencycalculation extends Serializable {
         val allDatesLastRow: Row = allDates.get (allDatesSize - 1)
         val lastRunId: Integer = allDatesLastRow.getInt (0)
         val lastRunDate: String = allDatesLastRow.getString (1)
-        val currentRunId: Integer = lastRunId + 1
+        val currentRunId: Integer = Integer2int (lastRunId) + 1
 
         session.execute (String.format ("INSERT INTO %s.%s (id, last_run_date) values (%s)", _cassandraSchemaName, _cassandraLatencyResultsTableName, currentDateTimePath))
 
@@ -519,76 +498,50 @@ class Latencycalculation extends Serializable {
       def call(line: String): Order = {
         try {
           val lineWithoutEscapeCharacters: String = RemoveEscapeSequences (line)
-          println(lineWithoutEscapeCharacters)
           val fields: Array[String] = lineWithoutEscapeCharacters.split (",")
           val inputDateFormat: SimpleDateFormat = new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss", Locale.US)
           if (fields.length == 28) {
             val id: Int = fields (0).toInt
-            println(id)
             val applicationId: Int = fields (1).toInt
-            println(applicationId)
             val orderId: String = if (fields (2) != null && !fields (2).isEmpty) fields (2).trim
             else null
-            println(orderId)
             val orderNumber: String = if (fields (3) != null && !fields (3).isEmpty) fields (3).trim
             else null
-            println(orderNumber)
             val status: String = if (fields (4) != null && !fields (4).isEmpty) fields (4).trim
             else null
-            println(status)
             val financialStatus: String = if (fields (5) != null && !fields (5).isEmpty) fields (5).trim
             else null
-            println()
             val customerIsGuest: Boolean = TryParseBoolean (fields (6))
             val customerId: BigInteger = TryParseBigInteger (fields (7))
             val firstName: String = if (fields (8) != null && !fields (8).isEmpty) fields (8).trim
             else null
-            println(firstName)
             val lastName: String = if (fields (9) != null && !fields (9).isEmpty) fields (9).trim
             else null
-            println(lastName)
             val email: String = if (fields (10) != null && !fields (10).isEmpty) fields (10).trim
             else null
-            println(email)
             val subTotalPrice: BigDecimal = TryParseBigDecimal (fields (11))
-            println(subTotalPrice)
             val totalDiscounts: BigDecimal = TryParseBigDecimal (fields (12))
-            println(totalDiscounts)
             val storeCredit: BigDecimal = TryParseBigDecimal (fields (13))
-            println(storeCredit)
             val totalPrice: BigDecimal = TryParseBigDecimal (fields (14))
-            println(totalPrice)
             val currencyCode: String = if (fields (15) != null && !fields (15).isEmpty) fields (15).trim
             else null
-            println(currencyCode)
             val source: String = if (fields (16) != null && !fields (16).isEmpty) fields (16).trim
             else null
-            println(source)
             val createdAt: Date = TryParseDate (fields (17), inputDateFormat)
-            println(createdAt)
             val updatedAt: Date = TryParseDate (fields (18), inputDateFormat)
-            println(updatedAt)
             val customerCreatedAt: Date = TryParseDate (fields (19), inputDateFormat)
-            println(customerCreatedAt)
             val isSynced: Boolean = TryParseBoolean (fields (20))
             val billingAddressId: String = if (fields (21) != null && !fields (21).isEmpty) fields (21).trim
             else null
-            println(billingAddressId)
             val shippingAddressId: String = if (fields (22) != null && !fields (22).isEmpty) fields (22).trim
             else null
-            println(shippingAddressId)
             val created: Date = TryParseDate (fields (23), inputDateFormat)
-            println(created)
             val modified: Date = TryParseDate (fields (24), inputDateFormat)
-            println(modified)
             val consumerOrderId: Integer = TryParseInteger (fields (25))
-            println(consumerOrderId)
             val previousStatus: String = if (fields (26) != null && !fields (26).isEmpty) fields (26).trim
             else null
-            println(previousStatus)
             val isPartialData: Boolean = TryParseBoolean (fields (27))
             val order: Order = new Order (id, applicationId, orderId, orderNumber, status, financialStatus, customerIsGuest, customerId, firstName, lastName, email, subTotalPrice, totalDiscounts, storeCredit, totalPrice, currencyCode, source, createdAt, updatedAt, customerCreatedAt, isSynced, billingAddressId, shippingAddressId, created, modified, consumerOrderId, previousStatus, isPartialData)
-            println(order)
             order
           }
           else {
@@ -618,37 +571,23 @@ class Latencycalculation extends Serializable {
           val inputDateFormat: SimpleDateFormat = new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss", Locale.US)
           if (fields.length == 15) {
             val id: BigInteger = TryParseBigInteger (fields (0))
-            println(id)
             val applicationId: Int = fields (1).toInt
-            println(applicationId)
             val customerId: BigInteger = TryParseBigInteger (fields (2))
-            println(customerId)
             val customerGroup: String = if (fields (3) != null && !fields (3).isEmpty) fields (3).trim
             else null
-            println(customerGroup)
             val firstName: String = if (fields (4) != null && !fields (4).isEmpty) fields (4).trim
             else null
-            println(firstName)
             val lastName: String = if (fields (5) != null && !fields (5).isEmpty) fields (5).trim
             else null
-            println(lastName)
             val email: String = if (fields (6) != null && !fields (6).isEmpty) fields (6).trim
             else null
-            println(email)
             val optInNewsletter: Boolean = TryParseBoolean (fields (7))
-            println(optInNewsletter)
             val createdAt: Date = TryParseDate (fields (8), inputDateFormat)
-            println(createdAt)
             val updatedAt: Date = TryParseDate (fields (9), inputDateFormat)
-            println(updatedAt)
             val isSynced: Boolean = TryParseBoolean (fields (10))
-            println(isSynced)
             val created: Date = TryParseDate (fields (11), inputDateFormat)
-            println(created)
             val modified: Date = TryParseDate (fields (12), inputDateFormat)
-            println(modified)
             val consumerCustomerId: Integer = TryParseInteger (fields (13))
-            println(consumerCustomerId)
             val isPartialData: Boolean = TryParseBoolean (fields (14))
             val customer: Customer = new Customer (id, applicationId, customerId, customerGroup, firstName, lastName, email, optInNewsletter, createdAt, updatedAt, isSynced, created, modified, consumerCustomerId, isPartialData)
             customer
@@ -668,75 +607,6 @@ class Latencycalculation extends Serializable {
       }
     })
   }
-
-
-
-  //def map[R](f: JFunction[T, R]): JavaRDD[R]
-
-//  def parseCustomerData(customersPath: String, sc: JavaSparkContext): JavaRDD[Customer] = {
-//    sc.textFile(customersPath).map[Customer](new Function[String, Customer]() {
-//      def call(line: String): Customer = {
-//        try {
-//          val lineWithoutEscapeCharacters: String = RemoveEscapeSequences(line)
-//          println(lineWithoutEscapeCharacters)
-//          val fields: Array[String] = lineWithoutEscapeCharacters.split (",")
-//          val inputDateFormat: SimpleDateFormat = new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss", Locale.US)
-//
-//
-//          if (fields.length == 15) {
-//            val id: BigInteger = TryParseBigInteger (fields (0))
-//            println(id)
-//            val applicationId: Int = fields (1).toInt
-//            println(applicationId)
-//            val customerId: BigInteger = TryParseBigInteger (fields (2))
-//            println(customerId)
-//            val customerGroup: String = if (fields (3) != null && !fields (3).isEmpty) fields (3).trim
-//            else null
-//            println(customerGroup)
-//            val firstName: String = if (fields (4) != null && !fields (4).isEmpty) fields (4).trim
-//            else null
-//            println(firstName)
-//            val lastName: String = if (fields (5) != null && !fields (5).isEmpty) fields (5).trim
-//            else null
-//            println(lastName)
-//            val email: String = if (fields (6) != null && !fields (6).isEmpty) fields (6).trim
-//            else null
-//            println(email)
-//            val optInNewsletter: Boolean = TryParseBoolean (fields (7))
-//            println(optInNewsletter)
-//            val createdAt: Date = TryParseDate (fields (8), inputDateFormat)
-//            println(createdAt)
-//            val updatedAt: Date = TryParseDate (fields (9), inputDateFormat)
-//            println(updatedAt)
-//            val isSynced: Boolean = TryParseBoolean (fields (10))
-//            val created: Date = TryParseDate (fields (11), inputDateFormat)
-//            println(created)
-//            val modified: Date = TryParseDate (fields (12), inputDateFormat)
-//            println(modified)
-//            val consumerCustomerId: Integer = TryParseInteger (fields (13))
-//            println(consumerCustomerId)
-//            val isPartialData: Boolean = TryParseBoolean (fields (14))
-//            val customer: Customer = new Customer (id, applicationId, customerId, customerGroup, firstName, lastName, email, optInNewsletter, createdAt, updatedAt, isSynced, created, modified, consumerCustomerId, isPartialData)
-//            customer
-//          }
-//
-//          else {
-//            val errorMessage: String = "%s %s %s".format ("Customer '%s' cannot be parsed due to invalid length of %s.", lineWithoutEscapeCharacters, fields.length)
-//            _logger.error (errorMessage)
-//            null
-//          }
-//        }
-//        catch {
-//          case ex: Exception =>
-//            _logger.error ("Failed to parse customer: " + line)
-//            null
-//        }
-//      }
-//    })
-//  }
-
-
-
 
   def partitionCustomersByApplication(sc: JavaSparkContext, customersDataCsv: JavaRDD[Customer], currentDateTime: String, masterDataPath: String) {
     val customersPairByApplicationIdRdd: JavaPairRDD[String, String] = customersDataCsv.mapToPair (new PairFunction[Customer, String, String]() {
@@ -776,8 +646,8 @@ class Latencycalculation extends Serializable {
 
 
 
-  def partitionOrdersByApplication(sc: JavaSparkContext, orderDataCsv: JavaRDD[Order], currentDateTime: String, masterDataPath: String) {
-    val ordersPairByApplicationIdRdd: JavaPairRDD[String, String] = orderDataCsv.mapToPair (new PairFunction[Order, String, String]() {
+  def partitionOrdersByApplication(sc: JavaSparkContext, ordersDataCsv: JavaRDD[Order], currentDateTime: String, masterDataPath: String) {
+    val ordersPairByApplicationIdRdd: JavaPairRDD[String, String] = ordersDataCsv.mapToPair (new PairFunction[Order, String, String]() {
       @throws[Exception]
       def call(order: Order): (String, String) = {
         if (order != null && order.getApplicationId != null) {
@@ -848,7 +718,7 @@ class Latencycalculation extends Serializable {
 
   def ingestNewData(hdfsPath: String, masterDataPath: String, customersPath: String, ordersPath: String, sc: SparkContext, currentDateTimePath: String) {
 
-  //  var customersDataCsv: JavaRDD[Customer] = null
+    // var customersDataCsv: JavaRDD[Customer] = null
  //   var ordersDataCsv: JavaRDD[Order] = null
 
 
@@ -878,13 +748,15 @@ class Latencycalculation extends Serializable {
 
     // Load up customers and orders as JavaSpark RDD's
 
-    val customersDataCsv: JavaRDD[Customer] = parseCustomerData (customersMasterDataPath, sc)
-    val ordersDataCsv: JavaRDD[Order] = parseOrders (ordersMasterDataPath, sc)
+    val customersDataCsv: JavaRDD[Customer] = parseCustomerData(customersMasterDataPath, fromSparkContext (sc))
+    val ordersDataCsv: JavaRDD[Order] = parseOrders(ordersMasterDataPath, fromSparkContext (sc))
 
     // Map customers to a JavaPairRDD of (id(customer id) => Customer)
 
 
-    val customersPairRdd: JavaPairRDD[BigInteger, Customer] = customersDataCsv.mapToPair(new PairFunction[Customer, BigInteger, Customer]() {
+
+
+    val customersPairRdd: JavaPairRDD[BigInteger, Customer] = customersDataCsv.mapToPair[BigInteger, Customer](new PairFunction[Customer, BigInteger, Customer]() {
       @throws[Exception]
       def call(customer: Customer): (BigInteger, Customer) = {
         if (customer != null) {
@@ -898,7 +770,7 @@ class Latencycalculation extends Serializable {
 
 
     // Map orders to a JavaPairRDD of (customer id => Order)
-    val ordersPairRDD = ordersDataCsv.mapToPair (new PairFunction[Order, BigInteger, Order]() {
+    val ordersPairRDD: JavaPairRDD[BigInteger, Order] = ordersDataCsv.mapToPair[BigInteger, Order](new PairFunction[Order, BigInteger, Order]() {
       def call(order: Order): (BigInteger, Order) = {
         if (order != null) {
           new Tuple2[BigInteger, Order](order.getCustomerId, order)
