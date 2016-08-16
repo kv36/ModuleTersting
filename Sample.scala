@@ -756,8 +756,6 @@ class Latencycalculation extends Serializable {
 
 
 
-
-
   def calculateLatency(sc: SparkContext, applicationId: Int, customersMasterDataPath: String, ordersMasterDataPath: String, LatencyOutputResultspath: String): JavaRDD[LatencyData] = {
 
 
