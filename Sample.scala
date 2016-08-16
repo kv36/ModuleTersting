@@ -20,7 +20,7 @@ import org.apache.spark.api.java.{JavaPairRDD, JavaRDD, JavaSparkContext}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.slf4j.LoggerFactory
 
-      class Order(var id: Int, var applicationId: Int, var orderId: String, var orderNumber: String, var status: String, var financialStatus: String, var customerIsGuest: Boolean, var customerId: BigInteger, var firstName: String, var lastName: String, var email: String, var subTotalPrice: BigDecimal, var totalDiscounts: BigDecimal, var storeCredit: BigDecimal, var totalPrice: BigDecimal, var currencyCode: String, var source: String, var createdAt: Date, var updatedAt: Date, var customerCreatedAt: Date, var isSynced: Boolean, var billingAddressId: String, var shippingAddressId: String, var created: Date, var modified: Date, var consumerOrderId: Integer, var previousStatus: String, var isPartialData: Boolean)
+      class Order(var id: Int, var applicationId: Int, var orderId: String, var orderNumber: String, var status: String, var financialStatus: String, var customerIsGuest: Boolean, var customerId: BigInteger, var firstName: String, var lastName: String, var email: String, var subTotalPrice: BigDecimal, var totalDiscounts: BigDecimal, var storeCredit: BigDecimal, var totalPrice: BigDecimal, var currencyCode: String, var source: String, var createdAt: Date, var updatedAt: Date, var customerCreatedAt: Date, var isSynced: Boolean, var billingAddressId: String, var shippingAddressId: String, var created: Date, var modified: Date, var consumerOrderId: Integer, var previousStatus: String, var isPartialData: Boolean) extends Serializable
       {
       this.id = id
       this.applicationId = applicationId
@@ -109,21 +109,33 @@ import org.slf4j.LoggerFactory
 
 
         override def toString: String = {
-          val outputDateFormatter: SimpleDateFormat = new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss", Locale.US)
-          val formattedCreatedAtDate: String = if (createdAt != null) outputDateFormatter.format (createdAt)
-          else null
-          val formattedUpdatedAtDate: String = if (updatedAt != null) outputDateFormatter.format (updatedAt)
-          else null
-          val formattedCustomerCreatedAtDate: String = if (customerCreatedAt != null) outputDateFormatter.format (customerCreatedAt)
-          else null
-          val formattedCreatedDate: String = if (created != null) outputDateFormatter.format (created)
-          else null
-          val formattedModifiedDate: String = if (modified != null) outputDateFormatter.format (modified)
-          else null
-          // String.format ("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", id, applicationId, orderId, orderNumber, status, financialStatus, customerIsGuest, customerId, firstName, lastName, email, subTotalPrice, totalDiscounts, storeCredit, totalPrice, currencyCode, source, formattedCreatedAtDate, formattedUpdatedAtDate, formattedCustomerCreatedAtDate, isSynced, billingAddressId, shippingAddressId, formattedCreatedDate, formattedModifiedDate, consumerOrderId, previousStatus, isPartialData)
-        // String.format(String, id, applicationId, orderId, orderNumber, status, financialStatus, customerIsGuest, customerId, firstName, lastName, email, subTotalPrice, totalDiscounts, storeCredit, totalPrice, currencyCode, source, formattedCreatedAtDate, formattedUpdatedAtDate, formattedCustomerCreatedAtDate, isSynced, billingAddressId, shippingAddressId, formattedCreatedDate, formattedModifiedDate, consumerOrderId, previousStatus, isPartialData)
-          s"$id $applicationId $orderId $orderNumber $status $financialStatus $customerIsGuest $customerId $firstName $lastName $email $subTotalPrice $totalDiscounts $storeCredit $totalPrice $currencyCode $source $formattedCreatedAtDate $formattedUpdatedAtDate $formattedCustomerCreatedAtDate $isSynced $billingAddressId $shippingAddressId $formattedCreatedDate $formattedModifiedDate $consumerOrderId $previousStatus $isPartialData"
+          try {
+            val outputDateFormatter: SimpleDateFormat = new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss", Locale.US)
+            val formattedCreatedAtDate: String = if (createdAt != null) outputDateFormatter.format (createdAt)
+            else null
+            val formattedUpdatedAtDate: String = if (updatedAt != null) outputDateFormatter.format (updatedAt)
+            else null
+            val formattedCustomerCreatedAtDate: String = if (customerCreatedAt != null) outputDateFormatter.format (customerCreatedAt)
+            else null
+            val formattedCreatedDate: String = if (created != null) outputDateFormatter.format (created)
+            else null
+            val formattedModifiedDate: String = if (modified != null) outputDateFormatter.format (modified)
+            else null
+
+           // val customerIsGuestString: String = if (customerIsGuest != null) customerIsGuest.toString else null
+
+
+           // String.format ("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", id.toString, applicationId.toString, orderId, orderNumber, status, financialStatus, customerIsGuestString, customerId.toString, firstName, lastName, email, subTotalPrice.toString, totalDiscounts.toString, storeCredit.toString, totalPrice.toString, currencyCode, source, formattedCreatedAtDate, formattedUpdatedAtDate, formattedCustomerCreatedAtDate, isSynced.toString, billingAddressId, shippingAddressId, formattedCreatedDate, formattedModifiedDate, consumerOrderId.toString, previousStatus, isPartialData.toString)
+            // String.format(String, id, applicationId, orderId, orderNumber, status, financialStatus, customerIsGuest, customerId, firstName, lastName, email, subTotalPrice, totalDiscounts, storeCredit, totalPrice, currencyCode, source, formattedCreatedAtDate, formattedUpdatedAtDate, formattedCustomerCreatedAtDate, isSynced, billingAddressId, shippingAddressId, formattedCreatedDate, formattedModifiedDate, consumerOrderId, previousStatus, isPartialData)
+            s"$id,$applicationId,$orderId,$orderNumber,$status,$financialStatus,$customerIsGuest,$customerId,$firstName,$lastName,$email,$subTotalPrice,$totalDiscounts,$storeCredit,$totalPrice,$currencyCode,$source,$formattedCreatedAtDate,$formattedUpdatedAtDate,$formattedCustomerCreatedAtDate,$isSynced,$billingAddressId,$shippingAddressId,$formattedCreatedDate,$formattedModifiedDate,$consumerOrderId,$previousStatus,$isPartialData"
+          }
+        catch {
+          case ex: Exception =>
+            //_logger.error ("Failed to parse order: " + line)
+            val message: String = ex.getMessage
+            null
         }
+      }
     }
 
        class Customer(var id: BigInteger, var applicationId: Int, var customerId: BigInteger, var customerGroup: String, var firstName: String, var lastName: String, var email: String, var optInNewsletter: Boolean, var createdAt: Date, var updatedAt: Date, var isSynced: Boolean, var created: Date, var modified: Date, var consumerCustomerId: Integer, var isPartialData: Boolean)  {
@@ -147,7 +159,7 @@ import org.slf4j.LoggerFactory
 
         def getId: BigInteger = id
 
-        def getApplicationId: Integer = applicationId
+        def getApplicationId: Integer = int2Integer (applicationId)
 
         def getCustomerId: BigInteger = customerId
 
@@ -187,8 +199,11 @@ import org.slf4j.LoggerFactory
            else null
            val formattedModifiedDate: String = if (modified != null) outputDateFormatter.format (modified)
            else null
-         // String.format(String, id, applicationId, customerId, customerGroup, firstName, lastName, email, optInNewsletter, formattedCreatedAtDate, formattedUpdatedAtDate, isSynced, formattedCreatedDate, formattedModifiedDate, consumerCustomerId, isPartialData)
-           s"$id $applicationId $customerId $customerGroup $firstName $lastName $email $optInNewsletter $formattedCreatedAtDate $formattedUpdatedAtDate $isSynced $formattedCreatedDate $formattedModifiedDate $consumerCustomerId $isPartialData"
+
+          // String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", id.toString, applicationId.toString, customerId.toString, customerGroup.toString, firstName, lastName, email, optInNewsletter.toString, formattedCreatedAtDate, formattedUpdatedAtDate, isSynced.toString, formattedCreatedDate, formattedModifiedDate, consumerCustomerId.toString, isPartialData.toString)
+
+
+           s"$id,$applicationId,$customerId,$customerGroup,$firstName,$lastName,$email,$optInNewsletter,$formattedCreatedAtDate,$formattedUpdatedAtDate,$isSynced,$formattedCreatedDate,$formattedModifiedDate,$consumerCustomerId,$isPartialData"
          }
       }
 
@@ -783,70 +798,16 @@ class Latencycalculation extends Serializable {
 
 
 
-    val sortedOrdersPairRDD = ordersPairRDD.sortBy (f => f._2.getCreated, ascending = false).groupByKey ()
+    val sortedOrdersPairRDD = ordersPairRDD.sortBy (f => f._2.getCreatedAt, ascending = false).groupByKey ()
 
-    val zeroValue: (BigInteger, Date, Date, Date, Date) = Tuple5 [BigInteger, Date, Date, Date, Date](null, null, null, null, null)
-
-
-
-
-
-    def seqFunc(Tuple2: (BigInteger, Order), Tuple5: (BigInteger, Date, Date, Date, Date)) = {
-      val customerId = Tuple2._1
-      val order: Order = Tuple2._2
-
-      if (Tuple5 == null || Tuple5 == zeroValue) {
-        new Tuple5 (customerId, order.getCreated, null, null, null)
-      }
-      else {
-        if (Tuple5._3 == null) {
-          new Tuple5 (customerId, Tuple5._2, order.getCreated, null, null)
-        }
-        else if (Tuple5._4 == null) {
-          new Tuple5 (customerId, Tuple5._1, Tuple5._2, order.getCreated, null)
-        }
-        else if (Tuple5._5 == null) {
-          new Tuple5 (customerId, Tuple5._1, Tuple5._2, Tuple5._3, order.getCreated)
-        }
-      }
-    }
-
-
-    def combinerFunc(x: (BigInteger, Date, Date, Date, Date), y: (BigInteger, Date, Date, Date, Date)) : (BigInteger, Date, Date, Date, Date) = {
-      null
-    }
-
-
-
-    val AggregatedsortedorderspairRDD = sortedOrdersPairRDD.aggregateByKey(zeroValue)((x, y) => {
-      val customerId = x._1
-      val order: Order = y.head
-
-      if (Tuple5 == null || Tuple5 == zeroValue) {
-        new Tuple5 (customerId, order.getCreated, null, null, null)
-      }
-      else {
-        if (x._3 == null) {
-          new Tuple5 (customerId, x._2, order.getCreated, null, null)
-        }
-        else if (x._4 == null) {
-          new Tuple5 (customerId, x._1, x._2, order.getCreated, null)
-        }
-        else if (x._5 == null) {
-          new Tuple5 (customerId, x._1, x._2, x._3, order.getCreated)
-        }
-        null
-      }
-    }, combinerFunc)
-
-
-    val latencyDataJavaRdd : JavaRDD[LatencyData] = AggregatedsortedorderspairRDD.map(x =>
-    {
+    val latencyDataJavaRdd : JavaRDD[LatencyData] = sortedOrdersPairRDD.map(x => {
       val customerId : BigInteger = x._1
-      val FirstOrderDate : Date = x._2._2
-      val SecondOrderDate : Date = x._2._3
-      val ThirdOrderDate : Date = x._2._4
-      val FourthOrderDate : Date = x._2._5
+      val orders = x._2.toList
+
+      val FirstOrderDate : Date = if (orders.size >= 1 && orders(0) != null) orders(0).getCreatedAt else null
+      val SecondOrderDate : Date = if (orders.size >= 2 && orders(1) != null) orders(1).getCreatedAt else null
+      val ThirdOrderDate : Date = if (orders.size >= 3 && orders(2) != null) orders(2).getCreatedAt else null
+      val FourthOrderDate : Date = if (orders.size >= 4 && orders(3) != null) orders(3).getCreatedAt else null
 
       var FirstAndSecondOrder_Latency : Double = 0
       var SecondAndThirdOrder_Latency : Double = 0
@@ -854,6 +815,9 @@ class Latencycalculation extends Serializable {
       val daysDivisor: Int = 24 * 60 * 60 * 1000
 
       if (SecondOrderDate != null && FirstOrderDate != null) {
+        //Days.daysBetween(new LocalDate(), new LocalDate)
+        //val diff = (SecondOrderDate.getTime - FirstOrderDate.getTime)
+        //FirstAndSecondOrder_Latency = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS) / daysDivisor;
         FirstAndSecondOrder_Latency = (SecondOrderDate.getTime - FirstOrderDate.getTime) / daysDivisor
       }
 
@@ -870,8 +834,116 @@ class Latencycalculation extends Serializable {
       latencyData
     })
 
-   // latencyDataJavaRdd.saveAsTextFile(LatencyOutputResultspath)
     latencyDataJavaRdd
+
+//    val zeroValue: (BigInteger, Date, Date, Date, Date) = Tuple5 [BigInteger, Date, Date, Date, Date](null, null, null, null, null)
+
+
+
+
+
+//    def seqOp(Tuple2: (BigInteger, Order), Tuple5: (BigInteger, Date, Date, Date, Date)) = {
+//      val customerId = Tuple2._1
+//      val order: Order = Tuple2._2
+//
+//      if (Tuple5 == null || Tuple5 == zeroValue) {
+//        new Tuple5 (customerId, order.getCreated, null, null, null)
+//      }
+//      else {
+//        if (Tuple5._3 == null) {
+//          new Tuple5 (customerId, Tuple5._2, order.getCreated, null, null)
+//        }
+//        else if (Tuple5._4 == null) {
+//          new Tuple5 (customerId, Tuple5._1, Tuple5._2, order.getCreated, null)
+//        }
+//        else if (Tuple5._5 == null) {
+//          new Tuple5 (customerId, Tuple5._1, Tuple5._2, Tuple5._3, order.getCreated)
+//        }
+//      }
+//    }
+
+
+//    def combinerFunc(x: (BigInteger, Date, Date, Date, Date), y: (BigInteger, Date, Date, Date, Date)) : (BigInteger, Date, Date, Date, Date) = {
+//      null
+//    }
+//
+//    val AggregatedsortedorderspairRDD = sortedOrdersPairRDD.aggregateByKey(zeroValue)((x, y) => {
+//
+//
+//      val customerId = x._1
+//      val order: Order = y.head
+//
+//      if (y == null || y == zeroValue) {
+//        new Tuple5 (customerId, order.getCreated, null, null, null)
+//      }
+//      else {
+//        if (x._3 == null) {
+//          new Tuple5 (customerId, x._2, order.getCreated, null, null)
+//        }
+//        else if (x._4 == null) {
+//          new Tuple5 (customerId, x._1, x._2, order.getCreated, null)
+//        }
+//        else if (x._5 == null) {
+//          new Tuple5 (customerId, x._1, x._2, x._3, order.getCreated)
+//        }
+//        null
+//      }
+//    }, combinerFunc)
+
+//    val AggregatedsortedorderspairRDD = sortedOrdersPairRDD.aggregateByKey(zeroValue)((x, y) => {
+//      val customerId = x._1
+//      val order: Order = y.head
+//
+//      if (Tuple5 == null) {
+//        new Tuple5 (customerId, order.getCreated, null, null, null)
+//      }
+//      else {
+//        if (x._3 == null) {
+//          new Tuple5 (customerId, x._2, order.getCreated, null, null)
+//        }
+//        else if (x._4 == null) {
+//          new Tuple5 (customerId, x._1, x._2, order.getCreated, null)
+//        }
+//        else if (x._5 == null) {
+//          new Tuple5 (customerId, x._1, x._2, x._3, order.getCreated)
+//        }
+//        null
+//      }
+//    }, combinerFunc)
+
+
+//    val latencyDataJavaRdd : JavaRDD[LatencyData] = AggregatedsortedorderspairRDD.map(x =>
+//    {
+//      val customerId : BigInteger = x._1
+//      val FirstOrderDate : Date = x._2._2
+//      val SecondOrderDate : Date = x._2._3
+//      val ThirdOrderDate : Date = x._2._4
+//      val FourthOrderDate : Date = x._2._5
+//
+//      var FirstAndSecondOrder_Latency : Double = 0
+//      var SecondAndThirdOrder_Latency : Double = 0
+//      var ThirdAndFourthOrder_Latency : Double = 0
+//      val daysDivisor: Int = 24 * 60 * 60 * 1000
+//
+//      if (SecondOrderDate != null && FirstOrderDate != null) {
+//        FirstAndSecondOrder_Latency = (SecondOrderDate.getTime - FirstOrderDate.getTime) / daysDivisor
+//      }
+//
+//      if (ThirdOrderDate != null && SecondOrderDate != null) {
+//        SecondAndThirdOrder_Latency = (ThirdOrderDate.getTime - SecondOrderDate.getTime) / daysDivisor
+//      }
+//
+//      if (FourthOrderDate != null && ThirdOrderDate != null) {
+//        ThirdAndFourthOrder_Latency = (FourthOrderDate.getTime - ThirdOrderDate.getTime) / daysDivisor
+//      }
+//
+//      val latencyData : LatencyData = new LatencyData(customerId, FirstAndSecondOrder_Latency, SecondAndThirdOrder_Latency, ThirdAndFourthOrder_Latency)
+//
+//      latencyData
+//    })
+
+//   // latencyDataJavaRdd.saveAsTextFile(LatencyOutputResultspath)
+//    latencyDataJavaRdd
 
   }
 }
