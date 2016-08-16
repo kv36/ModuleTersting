@@ -730,7 +730,6 @@ class Latencycalculation extends Serializable {
 
 
 
-
   def ingestNewData(hdfsPath: String, masterDataPath: String, customersPath: String, ordersPath: String, sc: SparkContext, currentDateTimePath: String) {
 
     // var customersDataCsv: JavaRDD[Customer] = null
