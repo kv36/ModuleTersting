@@ -209,9 +209,9 @@ import org.slf4j.LoggerFactory
 
 
 
-class LatencyData(var CustomerId: BigInteger, var FirstAndSecondOrder_Latency: Double, var SecondAndThirdOrder_Latency: Double, var ThirdAndFourthOrder_Latency: Double) extends Serializable {
+class LatencyData(var customerId: BigInteger, var FirstAndSecondOrder_Latency: Double, var SecondAndThirdOrder_Latency: Double, var ThirdAndFourthOrder_Latency: Double) extends Serializable {
 
-  def getCustomerId: BigInteger = CustomerId
+  def getCustomerId: BigInteger = customerId
   def getFirstAndSecondOrder_Latency: Double = FirstAndSecondOrder_Latency
   def getSecondAndThirdOrder_Latency: Double = SecondAndThirdOrder_Latency
   def getThirdAndFourthOrder_Latency: Double =  ThirdAndFourthOrder_Latency
@@ -243,7 +243,7 @@ class Latencycalculation extends Serializable {
 
   val currentDateTimePath: String = getCurrentDateTimePath
   val _cassandraSchemaName: String = "revenue_conduit"
-  val _cassandraLatencyResultsTableName: String = "Latency_results"
+  val _cassandraLatencyResultsTableName: String = "latency_results"
   val _cassandraLatencyLastRunTableName: String = "Latency_last_run"
   val _logger = LoggerFactory.getLogger (classOf [Latencycalculation])
 
@@ -397,7 +397,7 @@ class Latencycalculation extends Serializable {
 
 
     var date: Date = null
-    val simpleDateFormat: SimpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+    val simpleDateFormat: SimpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
 
     val nullString: String = new String ("null")
 
@@ -438,13 +438,13 @@ class Latencycalculation extends Serializable {
 
     session = connector.openSession ()
 
-    session.execute (String.format ("CREATE KEYSPACE IF NOT EXISTS %" + "s WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}", _cassandraSchemaName))
+    session.execute (String.format ("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}", _cassandraSchemaName))
 
-    session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (customer_id BigInt, FirstandSecondOrder_Latency Double, SecondandThirdOrder_Latency Double, ThirdandFourthOrderLatency Double, " + "PRIMARY KEY (customer_id))", _cassandraSchemaName, _cassandraLatencyResultsTableName))
+    session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (customerId BigInt, FirstandSecondOrder_Latency Double, SecondandThirdOrder_Latency Double, ThirdandFourthOrderLatency Double, " + "PRIMARY KEY (customerId))", _cassandraSchemaName, _cassandraLatencyResultsTableName))
 
-    session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (id INT PRIMARY KEY, last_run_date TEXT)", _cassandraSchemaName, _cassandraLatencyLastRunTableName))
+    session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (id BigInt PRIMARY KEY, last_run_date TEXT)", _cassandraSchemaName, _cassandraLatencyLastRunTableName))
 
-    //session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (application_id INT, customer_id VARINT, customer_name TEXT, company_name TEXT, customer_group TEXT, customer_city TEXT, customer_state TEXT, customer_country TEXT, customer_email TEXT, " + "orders_sub_total DECIMAL, orders_count INT, first_order_date TIMESTAMP, last_order_date TIMESTAMP, average_days_between_orders INT, first_order_amount DECIMAL, last_order_amount DECIMAL, average_order_price DECIMAL, customer_created_at TIMESTAMP, " + "PRIMARY KEY (application_id, customer_id))", _cassandraSchemaName, _cassandraLatencyResultsTableName))
+    //session.execute (String.format ("CREATE TABLE IF NOT EXISTS %s.%s (application_id INT, customerId VARINT, customer_name TEXT, company_name TEXT, customer_group TEXT, customer_city TEXT, customer_state TEXT, customer_country TEXT, customer_email TEXT, " + "orders_sub_total DECIMAL, orders_count INT, first_order_date TIMESTAMP, last_order_date TIMESTAMP, average_days_between_orders INT, first_order_amount DECIMAL, last_order_amount DECIMAL, average_order_price DECIMAL, customer_created_at TIMESTAMP, " + "PRIMARY KEY (application_id, customerId))", _cassandraSchemaName, _cassandraLatencyResultsTableName))
     if (session != null && !session.isClosed)
       session.close ()
 
@@ -488,7 +488,7 @@ class Latencycalculation extends Serializable {
             val previousRunId: Integer = previousRunRow.getInt (0)
             val previousRunDate: String = previousRunRow.getString (1)
             if (previousRunDate != null && !previousRunDate.isEmpty) {
-              val cassandraLastRunLatencyResultsTableName: String = String.format ("Latency_results_%s", lastRunDate)
+              val cassandraLastRunLatencyResultsTableName: String = String.format ("latency_results_%s", lastRunDate)
               session.execute (String.format ("DROP TABLE IF EXISTS %s.%s", _cassandraSchemaName, cassandraLastRunLatencyResultsTableName))
             }
           }
@@ -614,10 +614,9 @@ class Latencycalculation extends Serializable {
           }
         }
         catch {
-          case ex: Exception => {
+          case ex: Exception =>
             _logger.error ("Failed to parse customer: " + line)
             null
-          }
         }
       }
     })
@@ -814,15 +813,15 @@ class Latencycalculation extends Serializable {
 
         //val diff = (SecondOrderDate.getTime - FirstOrderDate.getTime)
         //FirstAndSecondOrder_Latency = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS) / daysDivisor;
-        FirstAndSecondOrder_Latency = (SecondOrderDate.getTime - FirstOrderDate.getTime) / daysDivisor
+        FirstAndSecondOrder_Latency = ((SecondOrderDate.getTime - FirstOrderDate.getTime) / daysDivisor).abs
       }
 
       if (ThirdOrderDate != null && SecondOrderDate != null) {
-        SecondAndThirdOrder_Latency = (ThirdOrderDate.getTime - SecondOrderDate.getTime) / daysDivisor
+        SecondAndThirdOrder_Latency = ((ThirdOrderDate.getTime - SecondOrderDate.getTime) / daysDivisor).abs
       }
 
       if (FourthOrderDate != null && ThirdOrderDate != null) {
-        ThirdAndFourthOrder_Latency = (FourthOrderDate.getTime - ThirdOrderDate.getTime) / daysDivisor
+        ThirdAndFourthOrder_Latency = ((FourthOrderDate.getTime - ThirdOrderDate.getTime) / daysDivisor).abs
       }
 
       val latencyData : LatencyData = new LatencyData(customerId, FirstAndSecondOrder_Latency, SecondAndThirdOrder_Latency, ThirdAndFourthOrder_Latency)
@@ -938,7 +937,7 @@ class Latencycalculation extends Serializable {
       val ordersPath: String = args (6)
       val LatencyResultsPath: String = args (7)
       val _cassandraSchemaName: String = "revenue_conduit"
-      val _cassandraLatencyResultsTableName: String = "Latency_results"
+      val _cassandraLatencyResultsTableName: String = "latency_results"
 
       val _logger = LoggerFactory.getLogger (classOf [Latencycalculation])
 
