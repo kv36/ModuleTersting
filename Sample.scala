@@ -812,7 +812,7 @@ class Latencycalculation extends Serializable {
       val daysDivisor: Int = 24 * 60 * 60 * 1000
 
       if (SecondOrderDate != null && FirstOrderDate != null) {
-        //Days.daysBetween(new LocalDate(), new LocalDate)
+
         //val diff = (SecondOrderDate.getTime - FirstOrderDate.getTime)
         //FirstAndSecondOrder_Latency = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS) / daysDivisor;
         FirstAndSecondOrder_Latency = (SecondOrderDate.getTime - FirstOrderDate.getTime) / daysDivisor
