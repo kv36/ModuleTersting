@@ -733,7 +733,6 @@ class Latencycalculation extends Serializable {
   def ingestNewData(hdfsPath: String, masterDataPath: String, customersPath: String, ordersPath: String, sc: SparkContext, currentDateTimePath: String) {
 
     // var customersDataCsv: JavaRDD[Customer] = null
- //   var ordersDataCsv: JavaRDD[Order] = null
 
 
     // If there is new data for customers, then parse that data, partition it by application id into the master data set, then delete the new data
