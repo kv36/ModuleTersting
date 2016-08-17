@@ -202,7 +202,6 @@ import org.slf4j.LoggerFactory
 
           // String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", id.toString, applicationId.toString, customerId.toString, customerGroup.toString, firstName, lastName, email, optInNewsletter.toString, formattedCreatedAtDate, formattedUpdatedAtDate, isSynced.toString, formattedCreatedDate, formattedModifiedDate, consumerCustomerId.toString, isPartialData.toString)
 
-
            s"$id,$applicationId,$customerId,$customerGroup,$firstName,$lastName,$email,$optInNewsletter,$formattedCreatedAtDate,$formattedUpdatedAtDate,$isSynced,$formattedCreatedDate,$formattedModifiedDate,$consumerCustomerId,$isPartialData"
          }
       }
