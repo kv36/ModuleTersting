@@ -864,28 +864,6 @@ class Latencycalculation extends Serializable {
 //      null
 //    }
 //
-//    val AggregatedsortedorderspairRDD = sortedOrdersPairRDD.aggregateByKey(zeroValue)((x, y) => {
-//
-//
-//      val customerId = x._1
-//      val order: Order = y.head
-//
-//      if (y == null || y == zeroValue) {
-//        new Tuple5 (customerId, order.getCreated, null, null, null)
-//      }
-//      else {
-//        if (x._3 == null) {
-//          new Tuple5 (customerId, x._2, order.getCreated, null, null)
-//        }
-//        else if (x._4 == null) {
-//          new Tuple5 (customerId, x._1, x._2, order.getCreated, null)
-//        }
-//        else if (x._5 == null) {
-//          new Tuple5 (customerId, x._1, x._2, x._3, order.getCreated)
-//        }
-//        null
-//      }
-//    }, combinerFunc)
 
 //    val AggregatedsortedorderspairRDD = sortedOrdersPairRDD.aggregateByKey(zeroValue)((x, y) => {
 //      val customerId = x._1
