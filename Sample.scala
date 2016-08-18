@@ -18,7 +18,7 @@ import org.apache.spark.api.java.JavaSparkContext._
 import org.apache.spark.api.java.function.{Function, PairFunction}
 import org.apache.spark.api.java.{JavaPairRDD, JavaRDD, JavaSparkContext}
 import org.apache.spark.{SparkConf, SparkContext}
-import org.slf4j.LoggerFactory
+import org.slf4j.LoggerFactory'
 
       class Order(var id: Int, var applicationId: Int, var orderId: String, var orderNumber: String, var status: String, var financialStatus: String, var customerIsGuest: Boolean, var customerId: BigInteger, var firstName: String, var lastName: String, var email: String, var subTotalPrice: BigDecimal, var totalDiscounts: BigDecimal, var storeCredit: BigDecimal, var totalPrice: BigDecimal, var currencyCode: String, var source: String, var createdAt: Date, var updatedAt: Date, var customerCreatedAt: Date, var isSynced: Boolean, var billingAddressId: String, var shippingAddressId: String, var created: Date, var modified: Date, var consumerOrderId: Integer, var previousStatus: String, var isPartialData: Boolean) extends Serializable
       {
